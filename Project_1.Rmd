@@ -1,0 +1,127 @@
+---
+title: "Project_1"
+author: "Mike Fiore"
+date: "June 6, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+library(psych)
+```
+
+```{r}
+oj<-read.csv(url("http://data.mishra.us/files/OJ.csv"))
+oj$StoreID <- as.factor(oj$StoreID)
+oj$DiscCH <- as.factor(oj$DiscCH)
+oj$DiscMM <- as.factor(oj$DiscMM)
+oj$SpecialCH <- as.factor(oj$SpecialCH)
+oj$SpecialMM <- as.factor(oj$SpecialMM)
+oj$STORE <- as.factor(oj$STORE)
+oj$DiscCH <- as.numeric(oj$DiscCH)
+oj$DiscMM <- as.numeric(oj$DiscMM)
+set.seed(12345)
+samples <- createDataPartition(oj$Purchase, p = .7, list = F)
+train <- oj[samples, ]
+test <- oj[-samples,]
+```
+
+
+```{r}
+pairs.panels(oj)
+tc <- trainControl(summaryFunction = twoClassSummary, classProbs = TRUE)
+
+grid <- expand.grid(Sigma = c(.01, .015, 0.2),
+                    C = c(0.75, 0.9, 1, 1.1, 1.25)
+)
+full_mod <- train(Purchase ~ ., data = train, family = "binomial", method = "glm")
+summary(full_mod)
+mod1 <- glm(Purchase ~ StoreID + DiscCH + DiscMM + SpecialCH + SpecialMM, data = train, family = binomial)
+summary(mod1)
+
+mod2 <- train(Purchase ~ StoreID + SpecialCH + SpecialMM + PctDiscMM + PctDiscCH + ListPriceDiff , 
+              method = "glm", 
+              data = train, 
+              family = "binomial", 
+              metric = "ROC", 
+              trControl = tc)
+mod2
+summary(mod2)
+confusionMatrix(mod2)
+
+mod3 <- train(Purchase ~ StoreID + SpecialCH + SpecialMM + PctDiscMM + PctDiscCH + ListPriceDiff , 
+              method = "glm", 
+              data = train, 
+              family = "binomial", 
+              metric = "ROC", 
+              trControl = tc,
+              preProcess = c("center", "scale"))
+mod3
+summary(mod3)
+confusionMatrix(mod3)
+
+rf1 <- train(Purchase ~ StoreID + SpecialCH + SpecialMM + PctDiscMM + PctDiscCH + ListPriceDiff , 
+              method = "rf", 
+              data = train, 
+              family = "binomial",
+              trControl = tc,
+             metric = "ROC")
+rf1
+plot(rf1)
+rf1$xlevels
+plot(rf1$finalModel)
+varImp(rf1)
+
+
+
+rf2 <- train(Purchase ~ . , 
+              method = "rf", 
+              data = train, 
+              family = "binomial",
+              trControl = tc,
+             metric = "ROC")
+varImp(rf2)
+
+hist(train$WeekofPurchase[train$Purchase == "CH"])
+
+```
+```{r}
+# svmLinear, svmRadial, svmPoly
+grid <- data.frame(C = c(.05,.005))
+svm1 <- train(Purchase ~ .,
+              data= train, 
+              method = "svmLinear", 
+              tuneGrid = grid,
+              metric = "ROC", 
+              trControl = tc,
+              preProcess = c("center", "scale")
+              )
+summary(svm1)
+svm1
+
+grid <- expand.grid(Sigma = c(.01, .015, 0.2),
+                    C = c(0.75, 0.9, 1, 1.1, 1.25)
+)
+
+svm2 <- train(Purchase ~ ., data= train,
+              method = "svmPoly", 
+              metric = "ROC", 
+              trControl = tc,
+              preProcess = c("center", "scale"),
+              tuneGrid = grid)
+svm2
+
+svm3 <- train(Purchase ~ ., data= train,
+              method = "svmRadial", 
+              metric = "ROC", 
+              trControl = tc,
+              preProcess = c("center", "scale")
+              )
+svm3
+
+
+grid <- expand.grid(C = c(0.75, 0.9, 1, 1.1, 1.25))
+
+
+```
